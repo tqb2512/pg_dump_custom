@@ -1,0 +1,10 @@
+{
+    "db_host": "192.168.18.111",
+    "db_port": "5432",
+    "db_name": "postgres",
+    "db_user": "postgres",
+    "db_password": "postgres",
+    "schema_name": "tmp20261",
+    "output_dir": "D:\\tmp20261",
+    "pg_dump_path": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe"
+}
