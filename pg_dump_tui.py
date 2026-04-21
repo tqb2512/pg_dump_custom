@@ -123,6 +123,7 @@ def main_menu():
                 "Xuất tất cả Tables (DDL)",
                 "Xuất tất cả Functions",
                 "Xuất dữ liệu bằng SQL SELECT query",
+                "Xuất dữ liệu tách file theo nhóm",
                 "Cập nhật cấu hình DB",
                 "Mở thư mục Output hiện tại",
                 "Thoát"
@@ -158,6 +159,19 @@ def main_menu():
                 p_style = "bold green" if success else "bold red"
                 console.print(Panel(msg, title="[bold white]Kết quả", style=p_style, expand=False))
                 
+            questionary.press_any_key_to_continue("Nhấn phím bất kỳ để quay lại...").ask()
+
+        elif "Xuất dữ liệu tách file theo nhóm" in choice:
+            table_name = questionary.text("Tên bảng (vd: allcode):").ask()
+            if table_name and table_name.strip().lower() != 'cancel':
+                cols_input = questionary.text("Các cột distinct (cách nhau dấu phẩy, vd: cdname,cdtype):").ask()
+                if cols_input and cols_input.strip().lower() != 'cancel':
+                    with console.status(f"[bold green]Đang xuất dữ liệu bảng {table_name}..."):
+                        success, msg = dumper.export_data_by_distinct_cols(table_name.strip(), cols_input.strip(), progress_callback=ui_progress_callback)
+                    
+                    p_style = "bold green" if success else "bold red"
+                    console.print(Panel(msg, title="[bold white]Kết quả", style=p_style, expand=False))
+                    
             questionary.press_any_key_to_continue("Nhấn phím bất kỳ để quay lại...").ask()
 
         elif "Cập nhật cấu hình DB" in choice:

@@ -170,3 +170,92 @@ class PostgresDumper:
             return True, f"Thành công! Đã xuất {len(rows)} dòng vào {file_path}"
         except Exception as e:
             return False, f"❌ Lỗi khi xuất data: {e}"
+
+    def export_data_by_distinct_cols(self, table_name, columns_str, progress_callback=None):
+        """Xuất dữ liệu table tách ra thành các file dựa trên các cột distinct."""
+        cols = [c.strip() for c in columns_str.split(',') if c.strip()]
+        if not cols:
+            return False, "❌ Không có cột nào được chỉ định."
+            
+        target_table = f"{self.schema_name}.{table_name}" if self.schema_name else table_name
+        
+        # Thư mục riêng cho table
+        table_output_dir = os.path.join(self.output_dir, table_name)
+        
+        try:
+            conn = self.get_connection()
+            cur = conn.cursor()
+            
+            # Lấy danh sách giá trị distinct
+            cols_comma = ", ".join(cols)
+            cur.execute(f"SELECT DISTINCT {cols_comma} FROM {target_table}")
+            distinct_rows = cur.fetchall()
+            
+            if not distinct_rows:
+                return False, f"❌ Không có dữ liệu trong bảng {target_table}"
+                
+            if not os.path.exists(table_output_dir):
+                os.makedirs(table_output_dir)
+                
+            total_files = 0
+            total_rows_exported = 0
+            
+            for d_row in distinct_rows:
+                where_clauses = []
+                where_values = []
+                val_strs = []
+                
+                for i, col in enumerate(cols):
+                    val = d_row[i]
+                    if val is None:
+                        where_clauses.append(f"{col} IS NULL")
+                        val_strs.append("null")
+                    else:
+                        where_clauses.append(f"{col} = %s")
+                        where_values.append(val)
+                        val_strs.append(re.sub(r'[^a-zA-Z0-9_\-]', '_', str(val)))
+                
+                # Tạo tên file
+                suffix = "_".join(val_strs)
+                file_name = f"{table_name}_{suffix}.sql"
+                file_path = os.path.join(table_output_dir, file_name)
+                
+                # Query lấy dữ liệu theo nhóm
+                where_sql = " AND ".join(where_clauses)
+                query = f"SELECT * FROM {target_table} WHERE {where_sql}"
+                cur.execute(query, tuple(where_values))
+                data_rows = cur.fetchall()
+                
+                if not data_rows:
+                    continue
+                    
+                col_names = [desc[0] for desc in cur.description]
+                
+                # Ghi ra file
+                with open(file_path, "w", encoding="utf-8") as f:
+                    for row in data_rows:
+                        values = []
+                        for val in row:
+                            if val is None:
+                                values.append("NULL")
+                            elif isinstance(val, (int, float)):
+                                values.append(str(val))
+                            else:
+                                val_str = str(val).replace("'", "''")
+                                values.append(f"'{val_str}'")
+                        
+                        insert_sql = f"INSERT INTO {target_table} ({', '.join(col_names)}) VALUES ({', '.join(values)});\n"
+                        f.write(insert_sql)
+                
+                if progress_callback:
+                    progress_callback(f"✅ Đã xuất {len(data_rows)} dòng -> {file_path}")
+                    
+                total_files += 1
+                total_rows_exported += len(data_rows)
+
+            cur.close()
+            conn.close()
+            return True, f"Thành công! Đã xuất {total_rows_exported} dòng thành {total_files} file trong thư mục '{table_name}'"
+        except Exception as e:
+            return False, f"❌ Lỗi khi xuất data theo nhóm: {e}"
+
