@@ -164,8 +164,8 @@ def main_menu():
         elif "Xuất dữ liệu tách file theo nhóm" in choice:
             table_name = questionary.text("Tên bảng (vd: allcode):").ask()
             if table_name and table_name.strip().lower() != 'cancel':
-                cols_input = questionary.text("Các cột distinct (cách nhau dấu phẩy, vd: cdname,cdtype):").ask()
-                if cols_input and cols_input.strip().lower() != 'cancel':
+                cols_input = questionary.text("Các cột distinct (cách nhau dấu phẩy, để trống để xuất toàn bộ):").ask()
+                if cols_input is not None and cols_input.strip().lower() != 'cancel':
                     with console.status(f"[bold green]Đang xuất dữ liệu bảng {table_name}..."):
                         success, msg = dumper.export_data_by_distinct_cols(table_name.strip(), cols_input.strip(), progress_callback=ui_progress_callback)
                     

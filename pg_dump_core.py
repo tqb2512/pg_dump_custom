@@ -174,8 +174,6 @@ class PostgresDumper:
     def export_data_by_distinct_cols(self, table_name, columns_str, progress_callback=None):
         """Xuất dữ liệu table tách ra thành các file dựa trên các cột distinct."""
         cols = [c.strip() for c in columns_str.split(',') if c.strip()]
-        if not cols:
-            return False, "❌ Không có cột nào được chỉ định."
             
         target_table = f"{self.schema_name}.{table_name}" if self.schema_name else table_name
         
@@ -186,10 +184,13 @@ class PostgresDumper:
             conn = self.get_connection()
             cur = conn.cursor()
             
-            # Lấy danh sách giá trị distinct
-            cols_comma = ", ".join(cols)
-            cur.execute(f"SELECT DISTINCT {cols_comma} FROM {target_table}")
-            distinct_rows = cur.fetchall()
+            if not cols:
+                distinct_rows = [()]
+            else:
+                # Lấy danh sách giá trị distinct
+                cols_comma = ", ".join(cols)
+                cur.execute(f"SELECT DISTINCT {cols_comma} FROM {target_table}")
+                distinct_rows = cur.fetchall()
             
             if not distinct_rows:
                 return False, f"❌ Không có dữ liệu trong bảng {target_table}"
@@ -216,14 +217,22 @@ class PostgresDumper:
                         val_strs.append(re.sub(r'[^a-zA-Z0-9_\-]', '_', str(val)))
                 
                 # Tạo tên file
-                suffix = "_".join(val_strs)
-                file_name = f"{table_name}_{suffix}.sql"
+                if not cols:
+                    file_name = f"{table_name}_all.sql"
+                else:
+                    suffix = "_".join(val_strs)
+                    file_name = f"{table_name}_{suffix}.sql"
                 file_path = os.path.join(table_output_dir, file_name)
                 
                 # Query lấy dữ liệu theo nhóm
-                where_sql = " AND ".join(where_clauses)
-                query = f"SELECT * FROM {target_table} WHERE {where_sql}"
-                cur.execute(query, tuple(where_values))
+                if not cols:
+                    query = f"SELECT * FROM {target_table}"
+                    cur.execute(query)
+                else:
+                    where_sql = " AND ".join(where_clauses)
+                    query = f"SELECT * FROM {target_table} WHERE {where_sql}"
+                    cur.execute(query, tuple(where_values))
+                    
                 data_rows = cur.fetchall()
                 
                 if not data_rows:
